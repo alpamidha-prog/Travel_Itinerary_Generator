@@ -1,4 +1,10 @@
-import ItineraryGenerator from '@/components/ItineraryGenerator';
+'use client';
+
+import dynamic from 'next/dynamic';
+
+const ItineraryGenerator = dynamic(() => import('@/components/ItineraryGenerator'), {
+  ssr: false,
+});
 
 export default function Home() {
   return (
