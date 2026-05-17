@@ -59,8 +59,9 @@ export default function ItineraryGenerator() {
   const generateItinerary = async () => {
     setLoading(true);
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       const response = await axios.post(
-        'http://localhost:8000/api/itinerary/generate',
+        `${apiUrl}/api/itinerary/generate`,
         config
       );
       setItinerary(response.data);
