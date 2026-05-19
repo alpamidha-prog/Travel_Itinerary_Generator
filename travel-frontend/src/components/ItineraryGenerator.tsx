@@ -5,6 +5,7 @@ import axios from 'axios';
 import dynamic from 'next/dynamic';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 // Fix for default marker icons in Next.js
 if (typeof window !== 'undefined') {
@@ -38,6 +39,7 @@ interface Itinerary {
   days: {
     day_number: number;
     title?: string;
+    weather?: { temp: number, condition: string, emoji: string };
     activities: Activity[];
   }[];
 }
@@ -45,6 +47,7 @@ interface Itinerary {
 const INTERESTS = ['Art', 'Food', 'History', 'Nature', 'Adventure', 'Shopping', 'Nightlife'];
 const STYLES = ['Relaxed', 'Balanced', 'Packed'];
 const DAY_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#ef4444'];
+const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function ItineraryGenerator() {
   const [config, setConfig] = useState({
@@ -76,6 +79,7 @@ export default function ItineraryGenerator() {
       const data: Itinerary = response.data;
       data.days.forEach(day => {
         if (!day.title) day.title = "Discovering the City";
+        if (!day.weather) day.weather = { temp: Math.floor(Math.random() * 15) + 15, condition: 'Sunny', emoji: '☀️' };
         day.activities.forEach((act, idx) => {
           if (!act.time) act.time = idx === 0 ? "10:00 AM" : "02:00 PM";
           if (!act.cost) act.cost = Math.floor(Math.random() * 30) + 10;
@@ -90,6 +94,14 @@ export default function ItineraryGenerator() {
       setLoading(false);
     }
   };
+
+  // Generate fake cost breakdown based on budget
+  const costData = itinerary ? [
+    { name: 'Accommodation', value: Math.floor(config.budget * 0.4) },
+    { name: 'Food', value: Math.floor(config.budget * 0.25) },
+    { name: 'Activities', value: Math.floor(config.budget * 0.2) },
+    { name: 'Transportation', value: Math.floor(config.budget * 0.15) }
+  ] : [];
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -208,9 +220,38 @@ export default function ItineraryGenerator() {
       {itinerary && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
-          {/* Map Section */}
-          <div className="lg:col-span-7 lg:order-2">
-              <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-2 h-[600px] lg:h-[800px] sticky top-24">
+          {/* Left Column: Map & Analytics */}
+          <div className="lg:col-span-7 lg:order-2 space-y-6">
+              
+              {/* Analytics & Cost Breakdown */}
+              <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Budget Breakdown (€{config.budget})</h3>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={costData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                      >
+                        {costData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => `€${value}`} />
+                      <Legend verticalAlign="bottom" height={36}/>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Map Section */}
+              <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-2 h-[500px] lg:h-[600px] sticky top-24">
                   <MapContainer 
                       center={[itinerary.center.lat, itinerary.center.lng]} 
                       zoom={12}
@@ -252,13 +293,14 @@ export default function ItineraryGenerator() {
             {itinerary.days.map((day, idx) => (
                 <div key={idx} className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden group">
                     <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-start">
                             <div>
                                 <h3 className="text-blue-600 font-bold tracking-wide uppercase text-sm mb-1">Day {day.day_number}</h3>
                                 <h4 className="text-xl font-extrabold text-gray-900">{day.title}</h4>
                             </div>
-                            <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white shadow-md" style={{backgroundColor: DAY_COLORS[idx % DAY_COLORS.length]}}>
-                                D{day.day_number}
+                            <div className="text-right">
+                                <div className="text-2xl mb-1">{day.weather?.emoji}</div>
+                                <div className="text-sm font-semibold text-gray-600">{day.weather?.temp}°C</div>
                             </div>
                         </div>
                     </div>
@@ -273,7 +315,7 @@ export default function ItineraryGenerator() {
                                 <div className="flex-1 bg-slate-50 rounded-2xl p-4 border border-gray-100 hover:shadow-md transition-shadow">
                                     <div className="flex justify-between items-start mb-2">
                                         <h5 className="font-bold text-gray-900 text-lg leading-tight">{activity.name}</h5>
-                                        {activity.cost ? <span className="font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-md text-sm">€{activity.cost}</span> : null}
+                                        {activity.cost ? <span className="font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-md text-sm whitespace-nowrap ml-2">€{activity.cost}</span> : null}
                                     </div>
                                     <div className="flex flex-wrap gap-2 text-xs font-medium text-gray-500 mt-3">
                                         {activity.time && <span className="flex items-center gap-1"><span className="text-base">🕒</span> {activity.time}</span>}

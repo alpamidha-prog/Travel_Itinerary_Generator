@@ -18,7 +18,8 @@ export default function Home() {
             </div>
             <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700">Wanderlust AI</h1>
           </div>
-          <nav>
+          <nav className="flex items-center gap-6">
+            <a href="/dashboard" className="text-gray-600 hover:text-blue-600 font-semibold transition-colors">Dashboard</a>
             <button className="px-6 py-2 rounded-full text-blue-600 hover:bg-blue-50 font-semibold transition-colors">Sign In</button>
           </nav>
         </div>
