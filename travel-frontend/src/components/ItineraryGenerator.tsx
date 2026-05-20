@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import dynamic from 'next/dynamic';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db, auth } from '@/firebase';
 
 // Fix for default marker icons in Next.js
 if (typeof window !== 'undefined') {
@@ -59,6 +61,50 @@ export default function ItineraryGenerator() {
   });
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [loading, setLoading] = useState(false);
+  
+  // Save State Management
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  // Handle rehydrating dynamic saved trip from URL search params on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const tripId = searchParams.get('tripId');
+      if (tripId) {
+        const loadTrip = async () => {
+          setLoading(true);
+          try {
+            const docRef = doc(db, 'itineraries', tripId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              setItinerary({
+                destination: data.destination,
+                center: data.center,
+                days: data.days
+              });
+              setConfig({
+                destination: data.destination,
+                duration: data.duration || 3,
+                budget: data.budget || 1000,
+                interests: data.interests || [],
+                travelStyle: data.travelStyle || 'Balanced'
+              });
+            } else {
+              console.error('Trip does not exist in Firestore!');
+            }
+          } catch (err) {
+            console.error('Failed to load trip from Firestore:', err);
+          } finally {
+            setLoading(false);
+          }
+        };
+        loadTrip();
+      }
+    }
+  }, []);
 
   const toggleInterest = (interest: string) => {
     setConfig(prev => ({
@@ -71,6 +117,8 @@ export default function ItineraryGenerator() {
 
   const generateItinerary = async () => {
     setLoading(true);
+    setSaveSuccess(false);
+    setSaveError('');
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       const response = await axios.post(`${apiUrl}/api/itinerary/generate`, config);
@@ -88,10 +136,45 @@ export default function ItineraryGenerator() {
       });
       
       setItinerary(data);
+      // Remove any tripId parameter from URL when generating a new itinerary
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', '/');
+      }
     } catch (error) {
       console.error('Error generating itinerary:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveItinerary = async () => {
+    if (!auth.currentUser) {
+      alert('Please Sign In first to save itineraries to your dashboard!');
+      return;
+    }
+    if (!itinerary) return;
+
+    setSaving(true);
+    setSaveError('');
+    try {
+      await addDoc(collection(db, 'itineraries'), {
+        userId: auth.currentUser.uid,
+        destination: itinerary.destination,
+        center: itinerary.center,
+        days: itinerary.days,
+        duration: config.duration,
+        budget: config.budget,
+        travelStyle: config.travelStyle,
+        interests: config.interests,
+        createdAt: serverTimestamp()
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: any) {
+      console.error('Firestore save failed:', err);
+      setSaveError('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -105,6 +188,7 @@ export default function ItineraryGenerator() {
 
   return (
     <div className="max-w-7xl mx-auto">
+
       {/* Input Form */}
       <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12 mb-12">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
@@ -217,6 +301,45 @@ export default function ItineraryGenerator() {
       </div>
 
       {/* Map & Itinerary Display */}
+      {itinerary && (
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-6 mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
+              <span>✈️</span> Trip to {itinerary.destination}
+            </h2>
+            <p className="text-gray-500 font-semibold mt-1">
+              {config.duration} Days • {config.travelStyle} Style • €{config.budget} Budget
+            </p>
+          </div>
+          <div className="flex flex-col items-stretch md:items-end gap-2 w-full md:w-auto">
+            <button 
+              onClick={saveItinerary}
+              disabled={saving}
+              className={`px-8 py-3.5 rounded-2xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer ${
+                saveSuccess 
+                  ? 'bg-green-600 hover:bg-green-700 text-white shadow-green-500/20' 
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-blue-500/20'
+              }`}
+            >
+              {saving ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Saving...
+                </>
+              ) : saveSuccess ? (
+                '✅ Saved Successfully!'
+              ) : (
+                '💾 Save to Dashboard'
+              )}
+            </button>
+            {saveError && <p className="text-red-500 text-xs font-semibold">{saveError}</p>}
+          </div>
+        </div>
+      )}
+
       {itinerary && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
