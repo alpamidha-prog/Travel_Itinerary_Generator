@@ -120,7 +120,12 @@ export default function ItineraryGenerator() {
     setSaveSuccess(false);
     setSaveError('');
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      let apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (!apiUrl) {
+        apiUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+          ? ''
+          : 'http://localhost:8000';
+      }
       const response = await axios.post(`${apiUrl}/api/itinerary/generate`, config);
       
       // Enrich backend data with mock details for UI demonstration if missing
