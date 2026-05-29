@@ -51,7 +51,16 @@ const STYLES = ['Relaxed', 'Balanced', 'Packed'];
 const DAY_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#ef4444'];
 const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
-export default function ItineraryGenerator() {
+interface PresetConfig {
+  destination: string;
+  duration: number;
+  budget: number;
+  interests: string[];
+  travelStyle: string;
+  triggerGenerate?: number;
+}
+
+export default function ItineraryGenerator({ preset }: { preset?: PresetConfig }) {
   const [config, setConfig] = useState({
     destination: '',
     duration: 3,
@@ -66,6 +75,23 @@ export default function ItineraryGenerator() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
+
+  // Handle preset config from landing page
+  useEffect(() => {
+    if (preset) {
+      const newConfig = {
+        destination: preset.destination,
+        duration: preset.duration,
+        budget: preset.budget,
+        interests: preset.interests,
+        travelStyle: preset.travelStyle
+      };
+      setConfig(newConfig);
+      if (preset.triggerGenerate) {
+        generateItinerary(newConfig);
+      }
+    }
+  }, [preset]);
 
   // Handle rehydrating dynamic saved trip from URL search params on mount
   useEffect(() => {
@@ -115,7 +141,8 @@ export default function ItineraryGenerator() {
     }));
   };
 
-  const generateItinerary = async () => {
+  const generateItinerary = async (customConfig?: typeof config) => {
+    const activeConfig = customConfig || config;
     setLoading(true);
     setSaveSuccess(false);
     setSaveError('');
@@ -126,7 +153,7 @@ export default function ItineraryGenerator() {
           ? ''
           : 'http://localhost:8000';
       }
-      const response = await axios.post(`${apiUrl}/api/itinerary/generate`, config);
+      const response = await axios.post(`${apiUrl}/api/itinerary/generate`, activeConfig);
       
       // Enrich backend data with mock details for UI demonstration if missing
       const data: Itinerary = response.data;
@@ -286,7 +313,7 @@ export default function ItineraryGenerator() {
 
         <div className="mt-10 pt-8 border-t border-gray-100 flex justify-center">
           <button 
-            onClick={generateItinerary}
+            onClick={() => generateItinerary()}
             disabled={loading || !config.destination}
             className="w-full md:w-2/3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-lg px-8 py-4 rounded-2xl shadow-xl shadow-blue-500/20 transform hover:-translate-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex justify-center items-center gap-3"
           >

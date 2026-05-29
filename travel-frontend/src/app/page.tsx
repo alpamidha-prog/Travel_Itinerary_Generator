@@ -19,6 +19,23 @@ export default function Home() {
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [preset, setPreset] = useState<any>(null);
+
+  const handlePresetClick = (trip: any) => {
+    setPreset({
+      destination: trip.destination,
+      duration: trip.duration,
+      budget: trip.budget,
+      interests: trip.interests,
+      travelStyle: trip.travelStyle,
+      triggerGenerate: Date.now()
+    });
+
+    const element = document.getElementById('generator');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   // Monitor auth state changes
   useEffect(() => {
@@ -285,7 +302,7 @@ export default function Home() {
             <h2 className="text-4xl font-extrabold text-gray-900 mb-4">Start Planning</h2>
             <p className="text-xl text-gray-600">Let the AI do the heavy lifting.</p>
           </div>
-          <ItineraryGenerator />
+          <ItineraryGenerator preset={preset} />
         </div>
       </section>
 
@@ -295,11 +312,45 @@ export default function Home() {
           <h2 className="text-3xl font-bold text-center mb-16">Popular Generated Trips</h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { title: '3 Days in Paris', image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=800&auto=format&fit=crop', cost: '€800', type: 'Romantic' },
-              { title: 'Week in Tokyo', image: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=800&auto=format&fit=crop', cost: '€1,500', type: 'Cultural' },
-              { title: 'Bali Adventure', image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?q=80&w=800&auto=format&fit=crop', cost: '€600', type: 'Relaxation' }
+              { 
+                title: '3 Days in Paris', 
+                image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=800&auto=format&fit=crop', 
+                cost: '€800', 
+                type: 'Romantic',
+                destination: 'Paris, France',
+                duration: 3,
+                budget: 800,
+                interests: ['Art', 'Sightseeing', 'History'],
+                travelStyle: 'Balanced'
+              },
+              { 
+                title: 'Week in Tokyo', 
+                image: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=800&auto=format&fit=crop', 
+                cost: '€1,500', 
+                type: 'Cultural',
+                destination: 'Tokyo, Japan',
+                duration: 7,
+                budget: 1500,
+                interests: ['Food', 'Shopping', 'Art', 'History'],
+                travelStyle: 'Balanced'
+              },
+              { 
+                title: 'Bali Adventure', 
+                image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?q=80&w=800&auto=format&fit=crop', 
+                cost: '€600', 
+                type: 'Relaxation',
+                destination: 'Bali, Indonesia',
+                duration: 5,
+                budget: 600,
+                interests: ['Nature', 'Adventure'],
+                travelStyle: 'Relaxed'
+              }
             ].map((trip, idx) => (
-              <div key={idx} className="group rounded-3xl overflow-hidden cursor-pointer relative aspect-[4/5]">
+              <div 
+                key={idx} 
+                onClick={() => handlePresetClick(trip)}
+                className="group rounded-3xl overflow-hidden cursor-pointer relative aspect-[4/5]"
+              >
                 <img src={trip.image} alt={trip.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-8">
                   <div className="mb-2 flex gap-2">
